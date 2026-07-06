@@ -1,0 +1,24 @@
+{
+  "_comment": "Dev-Profil: RTX 5090 32GB, 64GB RAM, ArchLinux",
+  "llm_planner_model": "llama3:8b-instruct-q4_K_M",
+  "llm_responder_model": "llama3:8b-instruct-q8_0",
+  "vision_model": "llava:7b",
+  "embedding_model": "nomic-embed-text",
+
+  "safety": {
+    "max_tool_calls_per_cycle": 5,
+    "tool_timeout_seconds": 20,
+    "llm_timeout_seconds": 45,
+    "rate_limit_calls_per_minute": 60
+  },
+
+  "memory": {
+    "retrieval_top_k": 12,
+    "embedding_cache_size": 2048
+  },
+
+  "observability": {
+    "log_level": "DEBUG",
+    "enable_tracing": true
+  }
+}

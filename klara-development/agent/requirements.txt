@@ -1,0 +1,29 @@
+# Klara Agent – Python dependencies
+# Python >= 3.11 required
+
+# Core async HTTP client
+httpx>=0.27.0
+
+# Data validation and settings
+pydantic>=2.7.0
+
+# Vector database
+chromadb>=0.5.0
+
+# Web search
+duckduckgo-search>=6.0.0
+
+# Web scraping
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# Audio output (optional: installed via OS packages aplay/paplay)
+# python-sounddevice is an alternative if needed:
+# sounddevice>=0.4.6
+# numpy>=1.26.0
+
+# Webcam capture (optional – comment out if not using vision)
+# opencv-python>=4.9.0
+
+# Utilities
+python-dotenv>=1.0.0

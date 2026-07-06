@@ -1,0 +1,26 @@
+{
+  "_comment": "Prod-Profil: Proxmox, Intel Arc A310 4GB, 16GB RAM",
+  "llm_planner_model": "llama3:8b-instruct-q4_K_M",
+  "llm_responder_model": "llama3:8b-instruct-q4_K_M",
+  "vision_model": "llava:7b-q4_0",
+  "embedding_model": "nomic-embed-text",
+
+  "check_interval_seconds": 600,
+
+  "safety": {
+    "max_tool_calls_per_cycle": 3,
+    "tool_timeout_seconds": 15,
+    "llm_timeout_seconds": 60,
+    "rate_limit_calls_per_minute": 10
+  },
+
+  "memory": {
+    "retrieval_top_k": 8,
+    "embedding_cache_size": 512
+  },
+
+  "observability": {
+    "log_level": "WARNING",
+    "enable_tracing": false
+  }
+}

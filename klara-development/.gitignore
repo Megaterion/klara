@@ -1,0 +1,23 @@
+# Ignore secrets and generated data
+.env
+
+# Docker volumes
+shared-data/ollama/
+shared-data/sqlite/
+shared-data/vector_db/
+shared-data/xtts_models/
+shared-data/cache/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# Voice samples are tracked via .gitkeep only
+shared-data/voice_samples/*
+!shared-data/voice_samples/.gitkeep

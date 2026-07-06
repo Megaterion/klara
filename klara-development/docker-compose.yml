@@ -1,0 +1,60 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: klara_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./shared-data/ollama:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_MAX_LOADED_MODELS=2
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  xtts:
+    image: ghcr.io/coqui-ai/tts-cpu:latest
+    container_name: klara_voice
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./shared-data/xtts_models:/root/.local/share/tts
+      - ./shared-data/voice_samples:/samples
+    entrypoint:
+      - tts-server
+      - --model_name
+      - tts_models/multilingual/multi-dataset/xtts_v2
+      - --port
+      - "5002"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  klara-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: klara_agent
+    restart: unless-stopped
+    depends_on:
+      - ollama
+      - xtts
+    volumes:
+      - ./shared-data:/app/shared-data
+      - ./config:/app/config
+    environment:
+      - KLARA_PROFILE=${KLARA_PROFILE:-dev}
+      - HOMEASSISTANT_URL=${HOMEASSISTANT_URL:-}
+      - HOMEASSISTANT_TOKEN=${HOMEASSISTANT_TOKEN:-}
+    network_mode: host
