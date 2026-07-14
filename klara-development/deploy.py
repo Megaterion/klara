@@ -246,7 +246,7 @@ def print_results_table(checks: dict) -> bool:
                 "✅ OK" if ok else "❌ FAIL",
                 str(detail),
             )
-            if section not in {"XTTS server"} and not ok:
+            if not ok:
                 all_ok = False
 
     console.print(table)
