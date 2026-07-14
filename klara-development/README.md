@@ -71,8 +71,8 @@ python .venv/bin/python deploy.py --profile dev --start --force-start
 - Live-Logs laufen im rechten Fenster über `agent.observability.log_viewer`
 - `shared-data/logs/klara.log` ist ein rotierendes Log
 - Standardgrenzen aus `config/base.json`:
-  - `log_max_bytes = 2097152`
-  - `log_backup_count = 2`
+  - `log_max_bytes = 10485760`
+  - `log_backup_count = 3`
 
 ## DB-Management
 
