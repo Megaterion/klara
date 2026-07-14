@@ -1,42 +1,52 @@
 # Klara Operations Guide
 
-Klara wird operativ bewusst über **einen Einstiegspunkt** bedient:
+Arbeitsverzeichnis:
 
 ```bash
 cd /home/runner/work/klara/klara/klara-development
+```
+
+Standardstart:
+
+```bash
 ./start.sh
 ```
 
-Dieser Befehl macht genau Folgendes:
+`./start.sh` führt in dieser Reihenfolge aus:
 
 1. legt bei Bedarf `.venv/` an
 2. installiert/aktualisiert `requirements.txt`
 3. führt `deploy.py` aus
-4. startet Klara im **2-Fenster-Modus**
+4. startet eine `tmux`-Session mit 2 Fenstern
    - links: Setup + Chat
    - rechts: Live-Logs
 
 ## Voraussetzungen
 
-- Python 3.11+
+- Python 3.11 oder neuer
 - Docker + `docker compose`
 - `tmux`
-- `ffmpeg` (nur nötig, wenn `shared-data/voice_samples/killjoy.wav` noch nicht existiert)
+- `ffmpeg` nur dann, wenn `shared-data/voice_samples/killjoy.wav` noch nicht existiert
 
-## Weitere Befehle
+## Startvarianten
 
 ```bash
 ./start.sh check
 ./start.sh logs
+./start.sh stop
+```
+
+## DB-Befehle
+
+```bash
 ./start.sh db status
 ./start.sh db export --output /tmp/klara-memory.json
 ./start.sh db clear events preferences
 ./start.sh db delete events 1 2 3
 ./start.sh db reset
-./start.sh stop
 ```
 
-## Deploy-Verhalten
+## Deploy-Check
 
 `deploy.py` prüft und automatisiert:
 
@@ -46,24 +56,31 @@ Dieser Befehl macht genau Folgendes:
 - XTTS-Health
 - Voice-Sample
 
-Falls `killjoy.wav` fehlt und `killjoyGermanLines6min.mp3` im Repo-Root liegt, wird das WAV automatisch erzeugt.
+Wenn `shared-data/voice_samples/killjoy.wav` fehlt und `killjoyGermanLines6min.mp3` im Repo-Root liegt, erzeugt `deploy.py` die WAV-Datei automatisch.
 
-Der Agent startet im Standardpfad nur dann automatisch, wenn die Checks erfolgreich sind.
-Ein bewusstes Übergehen ist nur manuell über `python .venv/bin/python deploy.py --profile dev --start --force-start` vorgesehen.
+`./start.sh` startet den Agenten nur dann, wenn der Check erfolgreich ist.
+
+Erzwungener Start trotz fehlgeschlagener Checks:
+
+```bash
+python .venv/bin/python deploy.py --profile dev --start --force-start
+```
 
 ## Logs
 
 - Live-Logs laufen im rechten Fenster über `agent.observability.log_viewer`
-- die Datei `shared-data/logs/klara.log` ist nur ein **rotierender Ringpuffer**
-- Standardlimit:
+- `shared-data/logs/klara.log` ist ein rotierendes Log
+- Standardgrenzen aus `config/base.json`:
   - `log_max_bytes = 2097152`
   - `log_backup_count = 2`
 
-Damit bleibt die Log-Ablage begrenzt und wächst nicht unkontrolliert.
-
 ## DB-Management
 
-SQLite bleibt die Source of Truth:
+SQLite-Datei:
+
+- `shared-data/sqlite/klara.db`
+
+Tabellen:
 
 - `events`
 - `user_facts`
@@ -72,29 +89,16 @@ SQLite bleibt die Source of Truth:
 
 Der Vektorstore liegt separat in `shared-data/vector_db`.
 
-DB-Eingriffe laufen über:
+DB-Eingriffe erfolgen über:
 
 ```bash
 ./start.sh db ...
 ```
 
-Nicht über ad-hoc-Skripte, nicht über manuelle SQL-Dateien im Repo.
+## Direkter Python-Start
 
-## Roadmap-Abgleich
-
-Abgleich gegen `notizen/ProjektRoadmap_v3.md`:
-
-- **erfüllt:** Event-getriebener Kern, Tool-Budget, Hybrid-Memory, strukturierte Logs, Deploy-Check, Voice/Filesystem/Internet/Vision-Module vorhanden
-- **operativ ergänzt:** ein klarer Launcher (`start.sh`) und ein DB-Admin-CLI
-- **bewusst nicht enthalten:** Self-Improvement-Agent in der Basis; das entspricht v3
-
-## Vereinfachungsprinzip
-
-Für den Betriebsweg gilt:
-
-- ein Startskript
-- ein Checkskript
-- ein DB-CLI
-- ein Log-Viewer
-
-Keine zusätzlichen Launcher, keine unnötigen Start-Fallbacks, keine temporären Hilfsskripte im Repo.
+```bash
+pip install -r /home/runner/work/klara/klara/klara-development/requirements.txt
+cd /home/runner/work/klara/klara/klara-development
+KLARA_PROFILE=dev python -m agent.main
+```

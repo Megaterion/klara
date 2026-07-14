@@ -109,12 +109,18 @@ class SQLiteStore:
 
     async def upsert_user_fact(self, fact: str, source: str = "inference", confidence: float = 1.0) -> None:
         ts = datetime.utcnow().isoformat()
-        await self._db.execute(
-            """INSERT INTO user_facts (fact, source, confidence, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT DO NOTHING""",
-            (fact, source, confidence, ts, ts),
+        cursor = await self._db.execute(
+            """UPDATE user_facts
+               SET source = ?, confidence = MAX(confidence, ?), updated_at = ?
+               WHERE fact = ?""",
+            (source, confidence, ts, fact),
         )
+        if cursor.rowcount == 0:
+            await self._db.execute(
+                """INSERT INTO user_facts (fact, source, confidence, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (fact, source, confidence, ts, ts),
+            )
         await self._db.commit()
 
     async def get_user_facts(self, limit: int = 50) -> list[str]:

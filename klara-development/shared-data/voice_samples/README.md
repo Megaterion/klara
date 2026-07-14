@@ -1,20 +1,19 @@
 # Voice Samples
 
-Place your XTTS voice cloning sample here as `killjoy.wav`.
+Dateiablage:
 
-The file should be:
-- A clean WAV recording (no background noise)
-- Duration: 6-30 seconds
-- Sample rate: 22050 Hz or 44100 Hz (XTTS will handle resampling)
-- Mono or stereo
+- `killjoy.wav` liegt in diesem Verzeichnis
+- das Verzeichnis wird im XTTS-Container auf `/samples` gemountet
+- `config/base.json` referenziert die Datei als `/samples/killjoy.wav`
 
-The Killjoy voice sample `killjoyGermanLines6min.mp3` in the repo root
-should be converted to WAV and placed here:
+Konvertierung der mitgelieferten MP3-Datei:
 
 ```bash
-# Convert MP3 to WAV (requires ffmpeg)
 ffmpeg -i ../../killjoyGermanLines6min.mp3 -ar 22050 -ac 1 killjoy.wav
 ```
 
-The container maps this directory as `/samples/` — the config references
-`/app/shared-data/voice_samples/killjoy.wav` which maps to this file.
+Anforderungen an die Datei:
+
+- WAV
+- Mono
+- `killjoy.wav` als Dateiname

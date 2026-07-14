@@ -8,15 +8,65 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+import httpx
+
 logger = logging.getLogger(__name__)
+
+
+class _OllamaEmbeddingFunction:
+    def __init__(self, base_url: str, model_name: str, timeout: float = 30.0) -> None:
+        self.base_url = base_url.rstrip("/")
+        self.model_name = model_name
+        self.timeout = timeout
+
+    def __call__(self, input: list[str]) -> list[list[float]]:
+        texts = list(input)
+        if not texts:
+            return []
+
+        with httpx.Client(timeout=self.timeout) as client:
+            response = client.post(
+                f"{self.base_url}/api/embed",
+                json={"model": self.model_name, "input": texts},
+            )
+            if response.status_code == 404:
+                return [self._embed_legacy(client, text) for text in texts]
+
+            response.raise_for_status()
+            payload = response.json()
+            embeddings = payload.get("embeddings")
+            if isinstance(embeddings, list) and embeddings:
+                return embeddings
+
+        raise ValueError("Ollama embed response did not include embeddings")
+
+    def _embed_legacy(self, client: httpx.Client, text: str) -> list[float]:
+        response = client.post(
+            f"{self.base_url}/api/embeddings",
+            json={"model": self.model_name, "prompt": text},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        embedding = payload.get("embedding")
+        if isinstance(embedding, list) and embedding:
+            return embedding
+        raise ValueError("Legacy Ollama embedding response did not include embedding")
 
 
 class VectorStore:
     """Wraps ChromaDB for semantic storage and retrieval of Klara's memories."""
 
-    def __init__(self, db_path: str, embedding_model: str = "nomic-embed-text") -> None:
+    def __init__(
+        self,
+        db_path: str,
+        embedding_model: str = "nomic-embed-text",
+        ollama_url: str = "http://localhost:11434",
+        fallback_model: str = "all-MiniLM-L6-v2",
+    ) -> None:
         self.db_path = db_path
         self.embedding_model = embedding_model
+        self.ollama_url = ollama_url
+        self.fallback_model = fallback_model
         self._client = None
         self._collection = None
 
@@ -27,10 +77,7 @@ class VectorStore:
         Path(self.db_path).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(path=self.db_path)
 
-        # Use sentence-transformers for local embeddings (no API key needed)
-        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
+        ef = self._build_embedding_function(embedding_functions)
         self._collection = self._client.get_or_create_collection(
             name="klara_memories",
             embedding_function=ef,
@@ -40,6 +87,29 @@ class VectorStore:
             "VectorStore opened at %s (%d entries)",
             self.db_path,
             self._collection.count(),
+        )
+
+    def _build_embedding_function(self, embedding_functions):
+        configured = self.embedding_model.strip()
+        if configured:
+            ollama_ef = _OllamaEmbeddingFunction(
+                base_url=self.ollama_url,
+                model_name=configured,
+            )
+            try:
+                ollama_ef(["klara embedding probe"])
+                logger.info("VectorStore embeddings via Ollama model: %s", configured)
+                return ollama_ef
+            except Exception as exc:
+                logger.warning(
+                    "Falling back to local sentence-transformers embeddings after Ollama failure for %s: %s",
+                    configured,
+                    exc,
+                )
+
+        logger.info("VectorStore embeddings via local model: %s", self.fallback_model)
+        return embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name=self.fallback_model
         )
 
     async def close(self) -> None:

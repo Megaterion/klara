@@ -101,6 +101,7 @@ class KlaraApp:
         vector = VectorStore(
             db_path=self.config["memory"]["vector_db_path"],
             embedding_model=self.config.get("embedding_model", "nomic-embed-text"),
+            ollama_url=self.config.get("ollama_url", "http://localhost:11434"),
         )
         await vector.open()
 

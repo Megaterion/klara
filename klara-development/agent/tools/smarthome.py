@@ -28,7 +28,10 @@ class SmartHomeAgent:
             return
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
-            headers={"Authorization": f"******", "Content-Type": "application/json"},
+            headers={
+                "Authorization": "Bearer " + self.token,
+                "Content-Type": "application/json",
+            },
             timeout=self._timeout,
         )
         logger.info("SmartHomeAgent ready: %s", self.base_url)
