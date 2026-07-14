@@ -1,0 +1,10 @@
+{
+  "llm_model": "llama3.1:8b-instruct-q4_K_M",
+  "stt": {
+    "model": "base",
+    "device": "cpu",
+    "compute_type": "int8"
+  },
+  "check_interval_seconds": 300,
+  "max_tool_calls_per_cycle": 3
+}
