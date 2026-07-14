@@ -241,11 +241,9 @@ def print_results_table(checks: dict) -> bool:
                 if not ok:
                     all_ok = False
         else:
-            ok = items.get("ok", False)
-            detail = items.get("detail", "")
             table.add_row(
                 section,
-                "✅ OK" if ok else "⚠️  WARN",
+                "✅ OK" if ok else "❌ FAIL",
                 str(detail),
             )
             if section not in {"XTTS server"} and not ok:
