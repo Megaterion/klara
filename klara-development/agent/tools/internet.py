@@ -56,10 +56,24 @@ class InternetAgent:
         if not self._client:
             return ToolResult(tool="internet.fetch", success=False, error="Client not initialized")
 
-        # Block internal addresses
-        domain = re.findall(r"https?://([^/]+)", url)
-        if domain and domain[0].split(":")[0] in BLOCKED_DOMAINS:
-            return ToolResult(tool="internet.fetch", success=False, error="Blocked domain")
+        from urllib.parse import urlparse
+        import ipaddress
+        import socket
+
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme not in {"http", "https"} or not host:
+            return ToolResult(tool="internet.fetch", success=False, error="Invalid URL")
+        if host in BLOCKED_DOMAINS or host.endswith(".local"):
+            return ToolResult(tool="internet.fetch", success=False, error="Blocked host")
+
+        try:
+            for *_rest, sockaddr in socket.getaddrinfo(host, None):
+                ip = ipaddress.ip_address(sockaddr[0])
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                    return ToolResult(tool="internet.fetch", success=False, error="Blocked address")
+        except socket.gaierror:
+            return ToolResult(tool="internet.fetch", success=False, error="DNS lookup failed")
 
         try:
             resp = await self._client.get(url)
