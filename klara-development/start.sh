@@ -76,6 +76,8 @@ ensure_command() {
 
 ensure_venv() {
     ensure_command python3 "Bitte Python 3.11+ installieren."
+    python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' \
+        || { echo "❌ Python 3.11+ erforderlich (gefunden: $(python3 -V 2>&1))" >&2; exit 1; }
 
     if [[ ! -x "${PYTHON_BIN}" ]]; then
         echo "🐍 Erstelle Python-Venv ..."
