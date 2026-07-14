@@ -25,8 +25,6 @@ MAX_FILE_BYTES = 65536
 class FilesystemAgent:
     def __init__(self, config: dict) -> None:
         self.allowed_roots: list[str] = config.get("filesystem_allowed_roots", DEFAULT_ALLOWED_ROOTS)
-        self._user_id = config.get("user_id", "user")
-
     async def open(self) -> None:
         logger.info("FilesystemAgent ready. Allowed roots: %s", self.allowed_roots)
 
