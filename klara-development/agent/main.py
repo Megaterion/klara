@@ -179,17 +179,21 @@ class KlaraApp:
         """
         Continuously listens for user speech.
         Uses VAD to detect utterances, then transcribes with faster-whisper.
-        Displays transcription live in the console.
+        Partial transcription text is streamed live to the console while the
+        user is speaking; a final transcription is shown once the utterance ends.
         """
         voice = orchestrator.voice
         logger.info("Microphone loop started")
 
         while not self._shutdown.is_set():
             try:
-                def on_partial(status: str) -> None:
+                def on_status(status: str) -> None:
                     ui.set_transcription("", status)
 
-                utterance = await voice.listen_once(on_partial=on_partial)
+                def on_partial(text: str) -> None:
+                    ui.set_transcription(text)
+
+                utterance = await voice.listen_once(on_partial=on_partial, on_status=on_status)
 
                 if not utterance or len(utterance.strip()) < 2:
                     ui.clear_transcription()

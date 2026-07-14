@@ -118,66 +118,96 @@ class VoiceAgent:
     async def listen_once(
         self,
         on_partial: Optional[Callable[[str], None]] = None,
+        on_status: Optional[Callable[[str], None]] = None,
     ) -> str:
         """
         Capture one utterance from the microphone using VAD.
-        Returns transcribed text.
-        on_partial: called with a status string while listening (e.g. "Listening…")
+        Returns the final transcribed text.
+
+        on_partial: called with partial transcription text in real time while
+                    the user is speaking (updated approximately every 0.8 s).
+        on_status:  called with a UI status string (e.g. "🎤 Höre zu…") for
+                    display when no transcription text is available yet.
         """
         frame_samples = int(MIC_SAMPLE_RATE * VAD_FRAME_MS / 1000)
         frames: list[bytes] = []
         speech_started = False
         silent_count = 0
+        partial_done = asyncio.Event()
 
         audio_queue: asyncio.Queue[bytes] = asyncio.Queue()
-        loop = asyncio.get_event_loop()
-        stop_event = threading.Event()
+        loop = asyncio.get_running_loop()
 
         def sd_callback(indata: np.ndarray, _frames: int, _time, _status) -> None:
             mono = indata[:, 0].copy()
             pcm16 = (mono * 32767).astype(np.int16)
             loop.call_soon_threadsafe(audio_queue.put_nowait, pcm16.tobytes())
 
-        if on_partial:
-            on_partial("🎤 Warte auf Sprache…")
+        if on_status:
+            on_status("🎤 Warte auf Sprache…")
 
-        with sd.InputStream(
-            samplerate=MIC_SAMPLE_RATE,
-            channels=1,
-            dtype="float32",
-            blocksize=frame_samples,
-            callback=sd_callback,
-        ):
-            while not stop_event.is_set():
-                frame_bytes = await audio_queue.get()
-
-                if len(frame_bytes) < frame_samples * 2:
+        async def _partial_transcription_loop() -> None:
+            """Periodically transcribe accumulated audio and stream partial text."""
+            last_frame_count = 0
+            while not partial_done.is_set():
+                await asyncio.sleep(0.8)
+                if not speech_started or partial_done.is_set():
                     continue
+                current_count = len(frames)
+                if current_count > last_frame_count:
+                    last_frame_count = current_count
+                    raw = b"".join(frames)  # snapshot under GIL
+                    text = await self.transcribe_audio(raw)
+                    if text and on_partial and not partial_done.is_set():
+                        on_partial(text)
 
-                try:
-                    is_speech = self._vad.is_speech(frame_bytes, MIC_SAMPLE_RATE)
-                except Exception:
-                    is_speech = False
+        partial_task = asyncio.create_task(_partial_transcription_loop())
 
-                if is_speech:
-                    if not speech_started:
-                        speech_started = True
-                        if on_partial:
-                            on_partial("🎤 Höre zu…")
-                    silent_count = 0
-                    frames.append(frame_bytes)
-                elif speech_started:
-                    frames.append(frame_bytes)
-                    silent_count += 1
-                    if silent_count >= VAD_SILENCE_FRAMES:
-                        break  # End of utterance
+        try:
+            with sd.InputStream(
+                samplerate=MIC_SAMPLE_RATE,
+                channels=1,
+                dtype="float32",
+                blocksize=frame_samples,
+                callback=sd_callback,
+            ):
+                while True:
+                    frame_bytes = await audio_queue.get()
+
+                    if len(frame_bytes) < frame_samples * 2:
+                        continue
+
+                    try:
+                        is_speech = self._vad.is_speech(frame_bytes, MIC_SAMPLE_RATE)
+                    except Exception:
+                        is_speech = False
+
+                    if is_speech:
+                        if not speech_started:
+                            speech_started = True
+                            if on_status:
+                                on_status("🎤 Höre zu…")
+                        silent_count = 0
+                        frames.append(frame_bytes)
+                    elif speech_started:
+                        frames.append(frame_bytes)
+                        silent_count += 1
+                        if silent_count >= VAD_SILENCE_FRAMES:
+                            break  # End of utterance
+        finally:
+            partial_done.set()
+            partial_task.cancel()
+            try:
+                await partial_task
+            except asyncio.CancelledError:
+                pass
 
         if not frames:
             return ""
 
         raw_audio = b"".join(frames)
-        if on_partial:
-            on_partial("📝 Transkribiere…")
+        if on_status:
+            on_status("📝 Transkribiere…")
         return await self.transcribe_audio(raw_audio)
 
     # ------------------------------------------------------------------ #
