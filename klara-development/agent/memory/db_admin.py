@@ -20,6 +20,8 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
+from agent.memory.sqlite_store import SCHEMA
+
 console = Console()
 TABLES = ("events", "user_facts", "preferences", "assistant_actions")
 VECTOR_COLLECTION = "klara_memories"
@@ -60,6 +62,8 @@ def _connect_sqlite(config: dict[str, Any]) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row
+    connection.executescript(SCHEMA)
+    connection.commit()
     return connection
 
 

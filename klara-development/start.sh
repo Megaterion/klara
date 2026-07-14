@@ -3,13 +3,12 @@
 # Responsibilities:
 #   - create/update local virtualenv and install Python deps
 #   - run deploy checks (Docker, models, voice sample, services)
-#   - open chat + live logs together
+#   - open chat + live logs together in a simple tmux layout
 #   - expose DB admin shortcuts
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PID_FILE="${SCRIPT_DIR}/klara.pid"
 LOG_FILE="${SCRIPT_DIR}/shared-data/logs/klara.log"
 PROFILE="${KLARA_PROFILE:-dev}"
@@ -158,23 +157,12 @@ start_tmux_session() {
     TMUX_STARTED=0
 }
 
-start_plain_mode() {
-    echo "💡 tmux nicht gefunden. Starte Chat im aktuellen Terminal."
-    echo "   Logs separat mit: ./start.sh logs"
-    echo ""
-    cd "${SCRIPT_DIR}"
-    bash -lc "echo \"\$BASHPID\" > '${PID_FILE}'; exec '${PYTHON_BIN}' deploy.py --profile '${PROFILE}' --start"
-}
-
 case "${COMMAND}" in
     start)
         ensure_not_running
         ensure_venv
-        if command -v tmux >/dev/null 2>&1; then
-            start_tmux_session
-        else
-            start_plain_mode
-        fi
+        ensure_command tmux "Bitte tmux installieren; Klara startet bewusst nur noch im 2-Fenster-Modus."
+        start_tmux_session
         ;;
     check)
         ensure_venv
