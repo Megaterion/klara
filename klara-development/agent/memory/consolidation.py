@@ -81,9 +81,10 @@ class MemoryConsolidation:
 
     async def _decay_preferences(self) -> None:
         """Apply time-based recency decay to preferences."""
+        if not getattr(self.sqlite, "_db", None):
+            return
         try:
             await self.sqlite._db.execute(
-                """UPDATE preferences
                    SET recency = recency * 0.95
                    WHERE recency > 0.01"""
             )
