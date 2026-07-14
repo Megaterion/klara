@@ -31,7 +31,12 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------ #
 
 def load_config(profile: str | None = None) -> dict:
+    from dotenv import load_dotenv  # noqa: PLC0415
+
     base_dir = Path(__file__).parent.parent
+    # Load .env from the project root (silently ignored if absent)
+    load_dotenv(base_dir / ".env", override=False)
+
     profile = profile or os.environ.get("KLARA_PROFILE", "dev")
     base_path = base_dir / "config" / "base.json"
     profile_path = base_dir / "config" / f"profile.{profile}.json"
@@ -43,6 +48,12 @@ def load_config(profile: str | None = None) -> dict:
         with open(profile_path, encoding="utf-8") as f:
             overrides = json.load(f)
         _deep_merge(config, overrides)
+
+    # Apply environment-variable overrides for sensitive / installation-specific settings
+    if ha_url := os.environ.get("HA_URL"):
+        config.setdefault("homeassistant", {})["url"] = ha_url
+    if ha_token := os.environ.get("HA_TOKEN"):
+        config.setdefault("homeassistant", {})["token"] = ha_token
 
     config["_profile"] = profile
     return config

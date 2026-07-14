@@ -9,8 +9,8 @@
   "voice_language": "de",
   "voice_sample_rate": 24000,
   "homeassistant": {
-    "url": "http://192.168.1.1:8123/api",
-    "token": "YOUR_HA_TOKEN_HERE"
+    "url": "",
+    "token": ""
   },
   "camera_index": 0,
   "check_interval_seconds": 300,
