@@ -24,6 +24,9 @@ console = Console()
 
 BASE_DIR = Path(__file__).parent
 CONFIG_BASE = BASE_DIR / "config" / "base.json"
+ROOT_DIR = BASE_DIR.parent
+VOICE_SAMPLE_TARGET = BASE_DIR / "shared-data" / "voice_samples" / "killjoy.wav"
+VOICE_SAMPLE_SOURCE = ROOT_DIR / "killjoyGermanLines6min.mp3"
 
 
 def load_config(profile: str) -> dict:
@@ -67,6 +70,28 @@ async def check_docker_containers() -> list[dict]:
             running = False
         results.append({"name": name, "status": status, "ok": running})
     return results
+
+
+async def check_docker_runtime() -> list[dict]:
+    """Check whether docker and docker compose are available."""
+    checks = []
+    code, out = run_cmd(["docker", "--version"])
+    checks.append(
+        {
+            "name": "docker",
+            "ok": code == 0,
+            "detail": out.strip() if out.strip() else "not available",
+        }
+    )
+    code, out = run_cmd(["docker", "compose", "version"])
+    checks.append(
+        {
+            "name": "docker compose",
+            "ok": code == 0,
+            "detail": out.strip() if out.strip() else "not available",
+        }
+    )
+    return checks
 
 
 async def check_ollama_models(config: dict, client: httpx.AsyncClient) -> list[dict]:
@@ -146,6 +171,53 @@ async def check_voice_sample(config: dict) -> dict:
     }
 
 
+async def ensure_voice_sample(config: dict) -> dict:
+    """Ensure the XTTS voice sample exists, converting the bundled MP3 if possible."""
+    existing = await check_voice_sample(config)
+    if existing["ok"]:
+        existing["detail"] = existing.get("path", "present")
+        return existing
+
+    if not VOICE_SAMPLE_SOURCE.exists():
+        return {
+            "ok": False,
+            "detail": (
+                f"Voice sample fehlt und Quelle wurde nicht gefunden: {VOICE_SAMPLE_SOURCE}"
+            ),
+        }
+
+    code, out = run_cmd(["ffmpeg", "-version"])
+    if code != 0:
+        return {
+            "ok": False,
+            "detail": "ffmpeg fehlt; automatische WAV-Konvertierung nicht möglich",
+        }
+
+    VOICE_SAMPLE_TARGET.parent.mkdir(parents=True, exist_ok=True)
+    console.print("  🎙️  Voice sample fehlt. Konvertiere MP3 nach WAV ...")
+    code, out = run_cmd(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(VOICE_SAMPLE_SOURCE),
+            "-ar",
+            "22050",
+            "-ac",
+            "1",
+            str(VOICE_SAMPLE_TARGET),
+        ]
+    )
+    if code != 0:
+        return {"ok": False, "detail": f"ffmpeg-Konvertierung fehlgeschlagen: {out.strip()}"}
+
+    return {
+        "ok": True,
+        "path": str(VOICE_SAMPLE_TARGET),
+        "detail": f"erstellt aus {VOICE_SAMPLE_SOURCE.name}",
+    }
+
+
 def print_results_table(checks: dict) -> bool:
     """Print a summary table; return True if all critical checks pass."""
     table = Table(title="🤖 Klara Pre-Flight Check", show_header=True, header_style="bold cyan")
@@ -176,7 +248,8 @@ def print_results_table(checks: dict) -> bool:
                 "✅ OK" if ok else "⚠️  WARN",
                 str(detail),
             )
-            # XTTS and voice sample are warnings only; don't block startup for dev
+            if section not in {"XTTS server"} and not ok:
+                all_ok = False
 
     console.print(table)
     return all_ok
@@ -192,22 +265,44 @@ async def start_docker_services() -> None:
         console.print(f"  ❌ docker compose up failed:\n{out}")
 
 
+async def wait_for_service(name: str, url: str, expected_status: int = 200, timeout: int = 90) -> dict:
+    """Wait until an HTTP service responds successfully."""
+    deadline = asyncio.get_running_loop().time() + timeout
+    async with httpx.AsyncClient() as client:
+        last_error = "no response"
+        while asyncio.get_running_loop().time() < deadline:
+            try:
+                resp = await client.get(url, timeout=10)
+                if resp.status_code == expected_status:
+                    return {"name": name, "ok": True, "detail": f"HTTP {resp.status_code}"}
+                last_error = f"HTTP {resp.status_code}"
+            except Exception as exc:
+                last_error = str(exc)
+            await asyncio.sleep(2)
+    return {"name": name, "ok": False, "detail": last_error}
+
+
 async def main(profile: str, auto_start: bool, skip_docker: bool) -> int:
     console.print(f"\n[bold cyan]🤖 Klara Deploy Check[/bold cyan] — profile: [bold]{profile}[/bold]\n")
 
     config = load_config(profile)
 
     async with httpx.AsyncClient() as client:
+        with console.status("Checking Docker runtime..."):
+            docker_runtime = await check_docker_runtime()
+
         # 1. Docker containers
-        if not skip_docker:
+        if not skip_docker and all(item["ok"] for item in docker_runtime):
             with console.status("Checking Docker containers..."):
                 container_results = await check_docker_containers()
 
             if not all(c["ok"] for c in container_results):
                 console.print("  Some containers are not running. Starting them...")
                 await start_docker_services()
-                # Wait a bit and re-check
-                await asyncio.sleep(5)
+                console.print("  ⏳ Waiting for Ollama to become reachable...")
+                await wait_for_service("ollama", f"{config['ollama_url']}/api/tags")
+                console.print("  ⏳ Waiting for XTTS to become reachable...")
+                await wait_for_service("xtts", f"{config['xtts_url']}/health")
                 container_results = await check_docker_containers()
         else:
             container_results = [{"name": "skipped", "status": "skipped", "ok": True}]
@@ -227,9 +322,10 @@ async def main(profile: str, auto_start: bool, skip_docker: bool) -> int:
             xtts_result = await check_xtts_health(config, client)
 
         # 4. Voice sample
-        voice_result = await check_voice_sample(config)
+        voice_result = await ensure_voice_sample(config)
 
     checks = {
+        "Docker runtime": docker_runtime,
         "Docker containers": container_results,
         "Ollama models": model_results,
         "XTTS server": xtts_result,

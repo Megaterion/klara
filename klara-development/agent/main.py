@@ -84,6 +84,8 @@ class KlaraApp:
         tracer = StructuredLogger(
             log_level=self.config.get("log_level", "INFO"),
             log_file=self.config.get("log_file"),
+            log_max_bytes=self.config.get("log_max_bytes", 2 * 1024 * 1024),
+            log_backup_count=self.config.get("log_backup_count", 2),
         )
         tracer.configure(ui=ui)
         logger.info(

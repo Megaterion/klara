@@ -14,9 +14,17 @@ from typing import Optional
 class StructuredLogger:
     """Sets up Python logging for structured output."""
 
-    def __init__(self, log_level: str = "INFO", log_file: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        log_level: str = "INFO",
+        log_file: Optional[str] = None,
+        log_max_bytes: int = 2 * 1024 * 1024,
+        log_backup_count: int = 2,
+    ) -> None:
         self.log_level = getattr(logging, log_level.upper(), logging.INFO)
         self.log_file = log_file
+        self.log_max_bytes = max(int(log_max_bytes), 1024)
+        self.log_backup_count = max(int(log_backup_count), 1)
 
     def configure(self, ui: Optional["ConsoleUI"] = None) -> None:
         root = logging.getLogger()
@@ -33,8 +41,8 @@ class StructuredLogger:
             Path(self.log_file).parent.mkdir(parents=True, exist_ok=True)
             fh = logging.handlers.RotatingFileHandler(
                 self.log_file,
-                maxBytes=10 * 1024 * 1024,  # 10 MB
-                backupCount=3,
+                maxBytes=self.log_max_bytes,
+                backupCount=self.log_backup_count,
                 encoding="utf-8",
             )
             fh.setFormatter(formatter)

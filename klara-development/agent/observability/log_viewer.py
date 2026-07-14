@@ -13,7 +13,6 @@ Or launched automatically by start.sh via tmux.
 from __future__ import annotations
 
 import argparse
-import sys
 import time
 from collections import deque
 from pathlib import Path
@@ -65,6 +64,11 @@ def _render_panel(lines: deque[str], log_path: Path) -> Panel:
     )
 
 
+def _load_existing_lines(file_handle, lines: deque[str]) -> None:
+    for line in file_handle:
+        lines.append(line)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Klara log viewer")
     parser.add_argument(
@@ -76,33 +80,63 @@ def main() -> None:
 
     log_path = Path(args.log_file)
     console = Console(theme=LOG_THEME)
-
-    console.print(f"[bold yellow]📋 Klara Log Viewer[/bold yellow] — {log_path}")
-    console.print("[dim]Warte auf Log-Datei…[/dim]")
-
-    while not log_path.exists():
-        time.sleep(0.5)
-
     lines: deque[str] = deque(maxlen=MAX_LINES)
+    lines.append(f"Warte auf Log-Datei: {log_path}")
 
-    with open(log_path, encoding="utf-8", errors="replace") as f:
-        # Read all existing content first
-        for line in f:
-            lines.append(line)
+    current_file = None
+    current_inode = None
+    last_size = 0
 
-        with Live(
-            _render_panel(lines, log_path),
-            console=console,
-            refresh_per_second=REFRESH_RATE,
-            screen=True,
-        ) as live:
+    with Live(
+        _render_panel(lines, log_path),
+        console=console,
+        refresh_per_second=REFRESH_RATE,
+        screen=True,
+    ) as live:
+        while True:
+            try:
+                stat = log_path.stat()
+            except FileNotFoundError:
+                if current_file is not None:
+                    current_file.close()
+                    current_file = None
+                    current_inode = None
+                    last_size = 0
+                lines.append(f"Warte auf Log-Datei: {log_path}")
+                live.update(_render_panel(lines, log_path))
+                time.sleep(1 / REFRESH_RATE)
+                continue
+
+            reopen = (
+                current_file is None
+                or current_inode != stat.st_ino
+                or stat.st_size < last_size
+            )
+            if reopen:
+                if current_file is not None:
+                    current_file.close()
+                current_file = open(log_path, encoding="utf-8", errors="replace")
+                current_inode = stat.st_ino
+                last_size = 0
+                lines.append(f"Folge Log-Datei: {log_path}")
+                _load_existing_lines(current_file, lines)
+                last_size = current_file.tell()
+                live.update(_render_panel(lines, log_path))
+                time.sleep(1 / REFRESH_RATE)
+                continue
+
+            updated = False
             while True:
-                new_line = f.readline()
-                if new_line:
-                    lines.append(new_line)
-                    live.update(_render_panel(lines, log_path))
-                else:
-                    time.sleep(1 / REFRESH_RATE)
+                new_line = current_file.readline()
+                if not new_line:
+                    break
+                lines.append(new_line)
+                updated = True
+
+            last_size = current_file.tell()
+            if updated:
+                live.update(_render_panel(lines, log_path))
+            time.sleep(1 / REFRESH_RATE)
 
 
 if __name__ == "__main__":
