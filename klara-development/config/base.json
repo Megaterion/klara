@@ -1,0 +1,40 @@
+{
+  "agent_name": "Klara",
+  "ollama_url": "http://localhost:11434",
+  "xtts_url": "http://localhost:5002",
+  "llm_model": "llama3.1:8b-instruct-q8_0",
+  "vision_model": "llava:7b",
+  "embedding_model": "nomic-embed-text",
+  "voice_sample": "/app/shared-data/voice_samples/killjoy.wav",
+  "voice_language": "de",
+  "voice_sample_rate": 24000,
+  "homeassistant": {
+    "url": "http://192.168.1.1:8123/api",
+    "token": "YOUR_HA_TOKEN_HERE"
+  },
+  "camera_index": 0,
+  "check_interval_seconds": 300,
+  "user_id": "megaterion",
+  "max_tool_calls_per_cycle": 3,
+  "tool_timeout_seconds": 30,
+  "memory": {
+    "sqlite_path": "/app/shared-data/sqlite/klara.db",
+    "vector_db_path": "/app/shared-data/vector_db",
+    "retrieval_top_k": 10,
+    "consolidation_hour": 3
+  },
+  "tts": {
+    "chunk_min_chars": 20,
+    "chunk_max_chars": 150,
+    "normalize_volume": true,
+    "target_volume": 0.85
+  },
+  "stt": {
+    "model": "base",
+    "language": "de",
+    "device": "cuda",
+    "compute_type": "float16"
+  },
+  "log_level": "INFO",
+  "log_file": "/app/shared-data/logs/klara.log"
+}

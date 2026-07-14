@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: klara_ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./shared-data/ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  xtts:
+    image: ghcr.io/coqui-ai/tts:latest
+    container_name: klara_xtts
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./shared-data/xtts_models:/root/.local/share/tts
+      - ./shared-data/voice_samples:/samples
+    command:
+      - "--model_name"
+      - "tts_models/multilingual/multi-dataset/xtts_v2"
+      - "--use_cuda"
+      - "true"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - COQUI_TOS_AGREED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s

@@ -1,0 +1,10 @@
+{
+  "llm_model": "llama3.1:8b-instruct-q8_0",
+  "stt": {
+    "model": "medium",
+    "device": "cuda",
+    "compute_type": "float16"
+  },
+  "check_interval_seconds": 60,
+  "max_tool_calls_per_cycle": 5
+}
