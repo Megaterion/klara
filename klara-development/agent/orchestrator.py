@@ -339,7 +339,7 @@ class Orchestrator:
                     result=result.data if result else None,
                     duration_ms=0,
                 )
-                await self.bus.publish(Events.TOOL_RESULT, tool=task.agent, result=result)
+                await self.bus.publish(Events.TOOL_RESULT, tool=f"{task.agent.value}.{task.action}", result=result)
             except asyncio.TimeoutError:
                 logger.error("Task timed out: %s.%s", task.agent, task.action)
             except Exception as exc:
