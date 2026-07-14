@@ -220,7 +220,7 @@ class VoiceAgent:
                     break
                 # Blocking playback runs in thread pool so the event loop stays free
                 # for the producer to continue generating the next chunk
-                await asyncio.get_event_loop().run_in_executor(
+                await asyncio.get_running_loop().run_in_executor(
                     None, self._play_audio, audio
                 )
 
