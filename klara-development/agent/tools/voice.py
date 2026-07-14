@@ -80,7 +80,7 @@ class VoiceAgent:
         from faster_whisper import WhisperModel
         import webrtcvad
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         logger.info(
             "Loading Whisper model '%s' on %s (%s)...",
             self.stt_model_size,
