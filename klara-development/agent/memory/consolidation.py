@@ -94,9 +94,10 @@ class MemoryConsolidation:
 
     async def _prune_old_facts(self) -> None:
         """Remove user facts older than 90 days with low confidence."""
+        if not getattr(self.sqlite, "_db", None):
+            return
         try:
             await self.sqlite._db.execute(
-                """DELETE FROM user_facts
                    WHERE confidence < 0.3
                    AND created_at < datetime('now', '-90 days')"""
             )
