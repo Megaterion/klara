@@ -1,28 +1,26 @@
 """
 console_ui.py — Rich-based live terminal UI for Klara.
 
-Layout:
+Chat window layout (this process):
 ┌─────────────────────────────────────────┐
 │  🤖 KLARA  |  status  |  time           │  ← header
 ├─────────────────────────────────────────┤
-│  🎤 YOU:  <live transcription>          │  ← mic input (cyan)
-│  🤖 KLARA: <streaming response>         │  ← Klara response (green)
+│  🎤 DU:  <live transcription>           │  ← mic input (cyan)
 ├─────────────────────────────────────────┤
-│  📋 LOGS                                │  ← structured logs (yellow/grey)
+│  🤖 KLARA: <streaming response>         │  ← Klara response (green)
 └─────────────────────────────────────────┘
 
+Logs run in a separate window (agent/observability/log_viewer.py).
 All output MUST go through this class — never use print() directly.
 """
 
 from __future__ import annotations
 
 import threading
-import time
 from collections import deque
 from datetime import datetime
 from typing import Optional
 
-from rich.columns import Columns
 from rich.console import Console
 from rich.layout import Layout
 from rich.live import Live
@@ -51,7 +49,8 @@ REFRESH_RATE = 15  # Hz
 
 class ConsoleUI:
     """
-    Singleton-style live terminal UI.
+    Singleton-style live terminal UI (chat window only).
+    Logs are displayed in a separate window via log_viewer.py.
     Thread-safe via internal lock.
     """
 
@@ -66,10 +65,6 @@ class ConsoleUI:
         self._klara_response: str = ""
         self._status: str = "Bereit"
         self._is_speaking: bool = False
-
-        # Rolling log buffer
-        self._logs: deque[tuple[str, str, str]] = deque(maxlen=MAX_LOG_LINES)
-        # (level, timestamp, message)
 
         # Background activity lines
         self._activity: deque[str] = deque(maxlen=10)
@@ -149,11 +144,7 @@ class ConsoleUI:
         self._refresh()
 
     def log(self, level: str, message: str) -> None:
-        """Add a log entry to the log panel."""
-        ts = datetime.now().strftime("%H:%M:%S")
-        with self._lock:
-            self._logs.append((level.upper(), ts, message))
-        self._refresh()
+        """No-op: logs are written to file and displayed in the separate log window."""
 
     def log_info(self, msg: str) -> None:
         self.log("INFO", msg)
@@ -176,7 +167,6 @@ class ConsoleUI:
         layout.split_column(
             Layout(name="header", size=3),
             Layout(name="body"),
-            Layout(name="logs", size=10),
         )
         layout["body"].split_column(
             Layout(name="user_panel", size=5),
@@ -224,23 +214,6 @@ class ConsoleUI:
 
         layout["klara_panel"].update(
             Panel(klara_text, title="[green]Klara[/green]", border_style="green")
-        )
-
-        # Log panel
-        log_text = Text()
-        for level, ts, msg in list(self._logs)[-8:]:
-            style_map = {
-                "INFO": "log.info",
-                "WARNING": "log.warning",
-                "ERROR": "log.error",
-                "DEBUG": "log.debug",
-            }
-            style = style_map.get(level, "log.info")
-            log_text.append(f"[{ts}] ", style="dim")
-            log_text.append(f"{level:7s} ", style=style)
-            log_text.append(f"{msg}\n", style="white")
-        layout["logs"].update(
-            Panel(log_text, title="[yellow]Logs[/yellow]", border_style="yellow")
         )
 
         return layout
