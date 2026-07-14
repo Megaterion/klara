@@ -5,7 +5,7 @@
   "llm_model": "llama3.1:8b-instruct-q8_0",
   "vision_model": "llava:7b",
   "embedding_model": "nomic-embed-text",
-  "voice_sample": "/app/shared-data/voice_samples/killjoy.wav",
+  "voice_sample": "/samples/killjoy.wav",
   "voice_language": "de",
   "voice_sample_rate": 24000,
   "homeassistant": {
@@ -18,8 +18,8 @@
   "max_tool_calls_per_cycle": 3,
   "tool_timeout_seconds": 30,
   "memory": {
-    "sqlite_path": "/app/shared-data/sqlite/klara.db",
-    "vector_db_path": "/app/shared-data/vector_db",
+    "sqlite_path": "shared-data/sqlite/klara.db",
+    "vector_db_path": "shared-data/vector_db",
     "retrieval_top_k": 10,
     "consolidation_hour": 3
   },
@@ -36,5 +36,5 @@
     "compute_type": "float16"
   },
   "log_level": "INFO",
-  "log_file": "/app/shared-data/logs/klara.log"
+  "log_file": "shared-data/logs/klara.log"
 }
