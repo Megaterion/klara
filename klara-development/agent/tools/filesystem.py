@@ -34,10 +34,12 @@ class FilesystemAgent:
         pass
 
     def _is_allowed(self, path: Path) -> bool:
-        resolved = path.resolve()
-        return any(
-            str(resolved).startswith(root) for root in self.allowed_roots
-        )
+        resolved = path.expanduser().resolve()
+        for root in self.allowed_roots:
+            root_path = Path(root).expanduser().resolve()
+            if resolved.is_relative_to(root_path):
+                return True
+        return False
 
     async def read_file(self, path: str, max_bytes: int = 8192) -> ToolResult:
         """Read a text file. Returns content as string."""
