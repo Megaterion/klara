@@ -241,6 +241,8 @@ def print_results_table(checks: dict) -> bool:
                 if not ok:
                     all_ok = False
         else:
+            ok = items.get("ok", False)
+            detail = items.get("detail", items.get("status", items.get("path", "")))
             table.add_row(
                 section,
                 "✅ OK" if ok else "❌ FAIL",
