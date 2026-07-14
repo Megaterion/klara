@@ -103,7 +103,7 @@ class VoiceAgent:
         if self._whisper is None:
             return ""
         pcm = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         segments, _ = await loop.run_in_executor(
             None,
             lambda: self._whisper.transcribe(
