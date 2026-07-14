@@ -60,7 +60,7 @@ cleanup() {
     fi
 }
 
-trap cleanup EXIT
+trap cleanup EXIT SIGTERM SIGINT
 
 ensure_command() {
     local command_name="$1"
