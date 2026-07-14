@@ -282,7 +282,7 @@ async def wait_for_service(name: str, url: str, expected_status: int = 200, time
     return {"name": name, "ok": False, "detail": last_error}
 
 
-async def main(profile: str, auto_start: bool, skip_docker: bool) -> int:
+async def main(profile: str, auto_start: bool, force_start: bool, skip_docker: bool) -> int:
     console.print(f"\n[bold cyan]🤖 Klara Deploy Check[/bold cyan] — profile: [bold]{profile}[/bold]\n")
 
     config = load_config(profile)
@@ -339,14 +339,16 @@ async def main(profile: str, auto_start: bool, skip_docker: bool) -> int:
     else:
         console.print("\n[bold yellow]⚠️  Some checks failed. Review issues above.[/bold yellow]")
 
-    if auto_start:
-        if not all_ok:
-            console.print("[yellow]Starting anyway (--start flag set)...[/yellow]")
+    if auto_start and (all_ok or force_start):
+        if force_start and not all_ok:
+            console.print("[yellow]Starte trotz fehlgeschlagener Checks (--force-start).[/yellow]")
         console.print("\n🚀 Launching Klara agent...\n")
         os.execvp(
             sys.executable,
             [sys.executable, "-m", "agent.main"],
         )
+    if auto_start and not all_ok:
+        console.print("\n[bold red]⛔ Start abgebrochen, da Checks fehlgeschlagen sind.[/bold red]")
 
     return 0 if all_ok else 1
 
@@ -362,8 +364,12 @@ if __name__ == "__main__":
         help="Start the agent after checks pass"
     )
     parser.add_argument(
+        "--force-start", action="store_true",
+        help="Start the agent even if checks fail"
+    )
+    parser.add_argument(
         "--skip-docker", action="store_true",
         help="Skip Docker container checks (for local dev without Docker)"
     )
     args = parser.parse_args()
-    sys.exit(asyncio.run(main(args.profile, args.start, args.skip_docker)))
+    sys.exit(asyncio.run(main(args.profile, args.start, args.force_start, args.skip_docker)))

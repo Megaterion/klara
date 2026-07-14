@@ -91,19 +91,23 @@ ensure_venv() {
 }
 
 stop_running_agent() {
+    local stopped=0
     if [[ -f "${PID_FILE}" ]]; then
         local existing_pid
         existing_pid="$(cat "${PID_FILE}")"
         if kill -0 "${existing_pid}" 2>/dev/null; then
             echo "🛑 Stoppe Klara (PID ${existing_pid}) ..."
             kill "${existing_pid}"
-            rm -f "${PID_FILE}"
-            return 0
+            stopped=1
         fi
         rm -f "${PID_FILE}"
     fi
     tmux kill-session -t "${TMUX_SESSION}" 2>/dev/null || true
-    echo "ℹ️  Keine laufende Klara-Instanz gefunden."
+    if [[ "${stopped}" == "1" ]]; then
+        echo "✅ Klara wurde gestoppt."
+    else
+        echo "ℹ️  Keine laufende Klara-Instanz gefunden."
+    fi
 }
 
 ensure_not_running() {

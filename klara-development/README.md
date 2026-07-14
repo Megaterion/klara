@@ -48,6 +48,9 @@ Dieser Befehl macht genau Folgendes:
 
 Falls `killjoy.wav` fehlt und `killjoyGermanLines6min.mp3` im Repo-Root liegt, wird das WAV automatisch erzeugt.
 
+Der Agent startet im Standardpfad nur dann automatisch, wenn die Checks erfolgreich sind.
+Ein bewusstes Übergehen ist nur manuell über `python .venv/bin/python deploy.py --profile dev --start --force-start` vorgesehen.
+
 ## Logs
 
 - Live-Logs laufen im rechten Fenster über `agent.observability.log_viewer`
